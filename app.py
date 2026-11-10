@@ -203,8 +203,11 @@ sensor = components.component(
     html=HTML,
     js=JS
 )
+result = sensor(
+    key="step_sensor",
+    on_steps_change=lambda: None
+)
 
-result = sensor(key="step_sensor")
 
 if result.steps is not None:
     st.session_state.steps = max(0, int(result.steps))
