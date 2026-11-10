@@ -22,7 +22,7 @@ today = date.today()
 
 # ---------- DARK THEME DESIGN ----------
 
-st.markdown("""
+st.markdown(f"""
 <style>
 .stApp {
     background-color: #050505;
