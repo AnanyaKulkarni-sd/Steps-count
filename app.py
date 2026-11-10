@@ -1,11 +1,10 @@
 
-
 import streamlit as st
 import plotly.graph_objects as go
-import streamlit.components.v2 as components
-from datetime import date, timedelta
+import datetime
+import math
 
-# ---------------- PAGE CONFIG ----------------
+# ================= PAGE CONFIG =================
 
 st.set_page_config(
     page_title="Smart Step Counter",
@@ -13,7 +12,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# ---------------- SESSION DATA ----------------
+# ================= SESSION DATA =================
 
 if "steps" not in st.session_state:
     st.session_state.steps = 0
@@ -21,9 +20,9 @@ if "steps" not in st.session_state:
 if "history" not in st.session_state:
     st.session_state.history = {}
 
-today = date.today()
+today = datetime.date.today()
 
-# ---------------- CUSTOM THEME ----------------
+# ================= CUSTOM DESIGN =================
 
 st.markdown("""
 <style>
@@ -37,7 +36,7 @@ header[data-testid="stHeader"] {
 }
 
 .block-container {
-    max-width: 1050px;
+    max-width: 1000px;
     padding-top: 2rem;
 }
 
@@ -55,7 +54,7 @@ h1, h2, h3, p, label {
 
 div.stButton > button {
     background: linear-gradient(
-        90deg, #ff3030, #ff9500, #dfff00
+        90deg, #ff3030, #ff9500, #ffff00, #7cff00
     );
     color: black;
     border: none;
@@ -70,20 +69,21 @@ div.stButton > button {
 </style>
 """, unsafe_allow_html=True)
 
-# ---------------- TITLE ----------------
+# ================= TITLE =================
 
 st.markdown("""
-<h1 style="text-align:center; letter-spacing:4px;">
+<h1 style="text-align:center;letter-spacing:4px;">
 SMART STEP COUNTER
 </h1>
-<p style="text-align:center; color:#999;">
+
+<p style="text-align:center;color:#999;">
 YOUR DAILY WALKING COMPANION
 </p>
 """, unsafe_allow_html=True)
 
 st.markdown("---")
 
-# ---------------- ANDROID SENSOR ----------------
+# ================= ANDROID STEP SENSOR =================
 
 HTML = """
 <div style="
@@ -95,13 +95,12 @@ HTML = """
 ">
 
 <button id="start" style="
-    background:linear-gradient(90deg,#ff3030,#ff9500,#dfff00);
+    background:linear-gradient(90deg,#ff3030,#ff9500,#ffff00,#7cff00);
     color:black;
-    padding:12px 28px;
+    padding:12px 25px;
     border:0;
     border-radius:25px;
     font-weight:bold;
-    cursor:pointer;
 ">
 START WALKING
 </button>
@@ -109,10 +108,9 @@ START WALKING
 <button id="stop" style="
     background:#333;
     color:white;
-    padding:12px 28px;
+    padding:12px 25px;
     border:0;
     border-radius:25px;
-    cursor:pointer;
 ">
 STOP
 </button>
@@ -133,7 +131,7 @@ export default function(component) {
     const stop = parentElement.querySelector("#stop");
     const status = parentElement.querySelector("#status");
 
-    let steps = 0;
+    let steps = component.data.initial_steps || 0;
     let active = false;
     let baseline = null;
     let above = false;
@@ -195,6 +193,7 @@ export default function(component) {
         if (
             typeof DeviceMotionEvent.requestPermission === "function"
         ) {
+
             try {
 
                 const permission =
@@ -232,36 +231,45 @@ export default function(component) {
     };
 
     return () => {
+
         active = false;
+
         window.removeEventListener("devicemotion", detect);
     };
 }
 """
 
-sensor_component = st.components.v2.component(
+step_sensor = st.components.v2.component(
     "step_sensor",
     html=HTML,
     js=JS
 )
 
-result = sensor_component(
-    key="step_sensor",
+# Register component state and receive updated steps
+
+result = step_sensor(
+    data={"initial_steps": st.session_state.steps},
     default={"steps": st.session_state.steps},
+    key="step_sensor",
     on_steps_change=lambda: None
 )
 
 if result.steps is not None:
-    st.session_state.steps = max(0, int(result.steps))
+    st.session_state.steps = max(
+        0,
+        int(result.steps)
+    )
 
 steps = st.session_state.steps
 
-# Save today's latest count in session history
+# Save today's count in session history
+
 st.session_state.history[str(today)] = steps
 
-# ---------------- NAVIGATION ----------------
+# ================= NAVIGATION =================
 
 page = st.radio(
-    "Choose Page",
+    "Navigation",
     ["Today", "Weekly Activity"],
     horizontal=True,
     label_visibility="collapsed"
@@ -269,12 +277,12 @@ page = st.radio(
 
 st.markdown("---")
 
-# ---------------- TODAY PAGE ----------------
+# ================= TODAY PAGE =================
 
 if page == "Today":
 
     st.markdown("""
-    <h2 style="text-align:center; letter-spacing:3px;">
+    <h2 style="text-align:center;letter-spacing:3px;">
     TODAY
     </h2>
     """, unsafe_allow_html=True)
@@ -283,90 +291,86 @@ if page == "Today":
 
     progress = min(steps / daily_goal, 1.0)
 
-    # Circular progress gauge
+    # CIRCULAR STEP GAUGE
 
-    circumference = 2 * 3.14159265 * 130
-    arc_length = circumference * 0.75
-    dash_offset = arc_length * (1 - progress)
+    gauge = go.Figure(
+        go.Indicator(
+            mode="gauge+number",
+            value=steps,
+            number={
+                "valueformat": ",.0f",
+                "font": {
+                    "size": 42,
+                    "color": "white"
+                }
+            },
+            title={
+                "text": "STEPS",
+                "font": {
+                    "size": 18,
+                    "color": "#aaaaaa"
+                }
+            },
+            gauge={
+                "shape": "angular",
+                "axis": {
+                    "range": [0, daily_goal],
+                    "visible": False
+                },
+                "bar": {
+                    "color": "#7cff00",
+                    "thickness": 0.22
+                },
+                "bgcolor": "#252525",
+                "borderwidth": 0,
+                "steps": [
+                    {
+                        "range": [0, 2500],
+                        "color": "#ff3030"
+                    },
+                    {
+                        "range": [2500, 5000],
+                        "color": "#ff9500"
+                    },
+                    {
+                        "range": [5000, 7500],
+                        "color": "#ffff00"
+                    },
+                    {
+                        "range": [7500, 10000],
+                        "color": "#7cff00"
+                    }
+                ]
+            }
+        )
+    )
 
-    st.html(f"""
-    <div style="
-        display:flex;
-        justify-content:center;
-        margin:25px 0;
-    ">
+    gauge.update_layout(
+        paper_bgcolor="#050505",
+        font_color="white",
+        height=340,
+        margin=dict(t=65, b=25, l=35, r=35)
+    )
 
-    <div style="
-        width:310px;
-        height:310px;
-        position:relative;
-    ">
-
-    <svg width="310" height="310" viewBox="0 0 300 300">
-
-        <defs>
-            <linearGradient id="stepGradient"
-                x1="0%" y1="100%" x2="100%" y2="0%">
-
-                <stop offset="0%" stop-color="#ff3030"/>
-                <stop offset="45%" stop-color="#ff9500"/>
-                <stop offset="75%" stop-color="#ffff00"/>
-                <stop offset="100%" stop-color="#7cff00"/>
-
-            </linearGradient>
-        </defs>
-
-        <circle
-            cx="150" cy="150" r="130"
-            fill="none"
-            stroke="#252525"
-            stroke-width="15"
-            stroke-dasharray="{arc_length} {circumference-arc_length}"
-            transform="rotate(135 150 150)"
-        />
-
-        <circle
-            cx="150" cy="150" r="130"
-            fill="none"
-            stroke="url(#stepGradient)"
-            stroke-width="15"
-            stroke-linecap="round"
-            stroke-dasharray="{arc_length} {circumference-arc_length}"
-            stroke-dashoffset="{dash_offset}"
-            transform="rotate(135 150 150)"
-        />
-
-        <text x="150" y="145"
-            text-anchor="middle"
-            fill="white"
-            font-size="48"
-            font-weight="bold">
-            {steps:,}
-        </text>
-
-        <text x="150" y="180"
-            text-anchor="middle"
-            fill="#aaaaaa"
-            font-size="18"
-            letter-spacing="3">
-            STEPS
-        </text>
-
-    </svg>
-    </div>
-    </div>
-    """)
+    st.plotly_chart(
+        gauge,
+        width="stretch",
+        theme=None,
+        config={"displayModeBar": False}
+    )
 
     st.markdown(
-        f"<p style='text-align:center;color:#aaa;'>"
-        f"{round(progress * 100)}% OF DAILY GOAL"
-        f"</p>",
+        f"""
+        <p style="text-align:center;color:#aaa;">
+        {round(progress * 100)}% OF DAILY GOAL
+        </p>
+        """,
         unsafe_allow_html=True
     )
 
     st.markdown("---")
 
-    # Distance and calories
+    # DISTANCE AND CALORIES
 
     distance = steps * 0.0007
     calories = steps * 0.04
@@ -395,9 +399,11 @@ if page == "Today":
     st.progress(progress)
 
     st.markdown(
-        f"<p style='text-align:center;color:#aaa;'>"
-        f"{steps:,} / {daily_goal:,} steps"
-        f"</p>",
+        f"""
+        <p style="text-align:center;color:#aaa;">
+        {steps:,} / {daily_goal:,} steps
+        </p>
+        """,
         unsafe_allow_html=True
     )
 
@@ -406,84 +412,82 @@ if page == "Today":
     else:
         st.info("Keep walking! Every step counts.")
 
-# ---------------- WEEKLY ACTIVITY ----------------
+# ================= WEEKLY ACTIVITY =================
 
 elif page == "Weekly Activity":
 
     st.markdown("""
-    <h2 style="text-align:center; letter-spacing:3px;">
+    <h2 style="text-align:center;letter-spacing:3px;">
     WEEKLY ACTIVITY
     </h2>
     """, unsafe_allow_html=True)
 
     dates = [
-        today - timedelta(days=i)
+        today - datetime.timedelta(days=i)
         for i in range(6, -1, -1)
     ]
 
-    days = [d.strftime("%a") for d in dates]
+    days = [
+        d.strftime("%a")
+        for d in dates
+    ]
 
     values = [
         st.session_state.history.get(str(d), 0)
         for d in dates
     ]
 
-    # Weekly bar graph
+    # WEEKLY BAR GRAPH
 
-    fig = go.Figure()
+    graph = go.Figure()
 
-    fig.add_trace(go.Bar(
-        x=days,
-        y=values,
+    graph.add_trace(
+        go.Bar(
+            x=days,
+            y=values,
+            marker={
+                "color": values,
+                "colorscale": [
+                    [0, "#ff3030"],
+                    [0.35, "#ff9500"],
+                    [0.7, "#ffff00"],
+                    [1, "#7cff00"]
+                ],
+                "cmin": 0,
+                "cmax": max(10000, max(values))
+            },
+            text=[f"{v:,}" for v in values],
+            textposition="outside"
+        )
+    )
 
-        marker=dict(
-            color=values,
-            colorscale=[
-                [0, "#ff3030"],
-                [0.35, "#ff9500"],
-                [0.7, "#ffff00"],
-                [1, "#7cff00"]
-            ],
-            cmin=0,
-            cmax=max(10000, max(values)),
-        ),
-
-        text=[f"{v:,}" for v in values],
-        textposition="outside"
-    ))
-
-    fig.update_layout(
-        title=dict(
-            text="STEPS WALKED EACH DAY",
-            font=dict(color="white")
-        ),
-
-        plot_bgcolor="#050505",
+    graph.update_layout(
+        title={
+            "text": "STEPS WALKED EACH DAY",
+            "font": {"color": "white"}
+        },
         paper_bgcolor="#050505",
-
-        font=dict(color="white"),
-
-        xaxis=dict(
-            title="DAY",
-            color="white",
-            showgrid=False
-        ),
-
-        yaxis=dict(
-            title="NUMBER OF STEPS",
-            color="white",
-            gridcolor="#333333",
-            rangemode="tozero"
-        ),
-
+        plot_bgcolor="#050505",
+        font={"color": "white"},
+        xaxis={
+            "title": "DAY",
+            "showgrid": False
+        },
+        yaxis={
+            "title": "NUMBER OF STEPS",
+            "gridcolor": "#333333",
+            "rangemode": "tozero"
+        },
         showlegend=False,
-        height=450,
-        margin=dict(t=65, b=50, l=55, r=25)
+        height=430,
+        margin=dict(t=65, b=45, l=45, r=20)
     )
 
     st.plotly_chart(
-        fig,
-        use_container_width=True
+        graph,
+        width="stretch",
+        theme=None,
+        config={"displayModeBar": False}
     )
 
     st.markdown("---")
@@ -513,5 +517,7 @@ elif page == "Weekly Activity":
     )
 
     st.caption(
-        "Only steps recorded in the current session are included."
+        "Daily records are currently stored only for this session."
     )
+
+
