@@ -22,43 +22,46 @@ today = date.today()
 
 # ---------- DARK THEME DESIGN ----------
 
-st.markdown(f"""
-<style>
-.stApp {
-    background-color: #050505;
-    color: white;
-}
 
-header[data-testid="stHeader"] {
-    background: #050505;
-}
+    st.html(f"""
+    <div style="display:flex;justify-content:center;margin:30px 0;">
+      <div style="
+        width:300px;
+        height:300px;
+        border-radius:50%;
+        background:conic-gradient(
+          from 135deg,
+          #ff3030,
+          #ff7a00,
+          #ffff00,
+          #7cff00 {angle}deg,
+          #252525 {angle}deg 360deg
+        );
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      ">
+        <div style="
+          width:245px;
+          height:245px;
+          background:#050505;
+          border-radius:50%;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+        ">
+          <div style="font-size:55px;font-weight:bold;color:white;">
+            {steps:,}
+          </div>
+          <div style="font-size:20px;color:#aaa;letter-spacing:3px;">
+            STEPS
+          </div>
+        </div>
+      </div>
+    </div>
+    """)
 
-.block-container {
-    padding-top: 2rem;
-    max-width: 1050px;
-}
-
-h1, h2, h3, p, label {
-    color: white !important;
-}
-
-[data-testid="stMetricValue"] {
-    color: white;
-}
-
-div.stButton > button {
-    background: linear-gradient(90deg, #ff3b30, #ff9500, #dfff00);
-    color: black;
-    border: none;
-    border-radius: 25px;
-    font-weight: bold;
-}
-
-[data-testid="stSidebar"] {
-    background-color: #111111;
-}
-</style>
-""", unsafe_allow_html=True)
 
 # ---------- NAVIGATION ----------
 
